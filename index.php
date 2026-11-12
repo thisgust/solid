@@ -1,18 +1,27 @@
 <?php
-    require_once 'ventaDto.php';
-    require_once 'movimientoDto.php';
-    require_once 'stockConnectorInterfaz.php';
-	require_once 'stockConnector.php';
-	require_once 'stockConnectorFalso.php';
-    require_once 'ventaController.php';
-    require_once 'ventaService.php';
+require_once 'ventaDto.php';
+require_once 'movimientoDto.php';
+require_once 'stockConnectorInterfaz.php';
+require_once 'stockConnector.php';
+require_once 'stockConnectorFalso.php';
+require_once 'estadisticasConnectorInterfaz.php';
+require_once 'estadisticasConnector.php';
+require_once 'estadisticasConnectorFalso.php';
+require_once 'ventaAdapter.php';
+require_once 'ventaRepository.php';
+require_once 'ventaService.php';
+require_once 'ventaController.php';
 
-    // Para probar sin requerir localhost, descomente una linea y comente la otra
-	// $conector = new StockConnector();
-	$conector = new StockConnectorFalso();
+// $conectorStock = new StockConnector();
+$conectorStock = new StockConnectorFalso();
+$conectorStock->setDisponible(true);
 
-    $servicio = new VentaService($conector);
-    $controlador = new VentaController($servicio);
+// $conectorEstadisticas = new EstadisticasConnector();
+$conectorEstadisticas = new EstadisticasConnectorFalso();
 
-    $controlador->procesar();
+$repositorio = new VentaRepository();
+$adaptador = new VentaAdapter();
+$servicio = new VentaService($conectorStock, $conectorEstadisticas, $repositorio);
+$controlador = new VentaController($servicio, $adaptador);
+$controlador->procesar();
 ?>

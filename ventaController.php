@@ -1,53 +1,53 @@
 <?php
-
 class VentaController {
-    public function __construct(private VentaService $servicio) {}
+    public function __construct(private VentaService $servicio, private VentaAdapter $adapter) {}
 
     public function procesar() {
-        $datos = json_decode(file_get_contents("php://input"), true);
-
-        if($datos === null) {
-                http_response_code(400);
-                echo json_encode(['mensaje' => 'JSON invalido']);
-                return;
-        }
-
-        if (!is_array($datos)) {
-            http_response_code(400);
-
-            echo json_encode([
-                'mensaje' => 'Los datos enviados no son válidos'
-            ]);
-
-            return;
-        }
-
-        if (!isset($datos['ventaId'], $datos['fecha'], $datos['cajeroId'], $datos['productos'])) {
-            http_response_code(400);
-
-            echo json_encode([
-                'mensaje' => 'Faltan datos de la venta'
-            ]);
-
-            return;
-        }
-
-
+        header('Content-Type: application/json');
+        $accion = $_GET['accion'] ?? 'procesar';
 
         try {
-            $venta = new DTOVenta(
-                ventaId: $datos['ventaId'],
-                fecha: $datos['fecha'],
-                cajeroId: $datos['cajeroId'],
-                productos: $datos['productos'],
-            );
+            if ($accion === 'estado') {
+                echo json_encode($this->servicio->consultarVentas(), JSON_PRETTY_PRINT);
 
-            $this->servicio->procesar($venta);
+                return;
+            }
+
+            if ($accion === 'reintentar') {
+                $this->servicio->reintentarPendientes();
+
+                echo json_encode([
+                    'mensaje' => 'Reintentos finalizados',
+                    'ventas' => $this->servicio->consultarVentas()
+                ]);
+
+                return;
+            }
+
+            $datos = json_decode(file_get_contents("php://input"), true);
+
+            if (!is_array($datos)) throw new Exception("JSON invalido");
+
+            if (isset($datos['ventaId'])) {
+                $venta = $this->adapter->adaptarA($datos);
+            } elseif (isset($datos['id'])) {
+                $venta = $this->adapter->adaptarA2($datos);
+            } else {
+                throw new Exception("No se pudo identificar el proveedor");
+            }
+
+            $resultado = $this->servicio->procesar($venta);
 
             http_response_code(200);
-            echo json_encode(['mensaje' => 'Se proceso la venta correctamente']);
-        } catch (Exception $e) {
+
+            echo json_encode([
+                'mensaje' => 'Venta recibida',
+                'resultado' => $resultado
+            ], JSON_PRETTY_PRINT);
+
+        } catch (Throwable $e) {
             http_response_code(400);
+
             echo json_encode(['mensaje' => $e->getMessage()]);
         }
     }
